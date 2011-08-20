@@ -1,3 +1,5 @@
+//#offy
+//#redundant
 import base, letterbase, letter;
 
 class LetterManager {
@@ -9,27 +11,28 @@ public:
 	auto count() { return letters.length; }
 	
 	Letter opIndex( int pos ) {
-		//if ( pos < 0 ) pos = letters.length + pos - 1;
-		//writeln( pos );
 		return letters[ pos ];
 	}
 
-	this( Square square, in string stringLetters ) {
+	this( Square square ) {
 		this.square = square;
 		with( square )
 			area = new Bmp( width, height );
-		int dummy = 0;
-		setText( stringLetters, dummy );
+		//m_offx = m_offy = 0;
 	}
 	
 	void setLetterBase( LetterBase letterBase ) {
-		this.letterBase = letterBase;;
+		this.letterBase = letterBase;
+	}
+	
+	string addTextln( string str ) {
+		string result = getText() ~ str ~ g_lf;
+		int dummy;
+		setText( result, dummy );
+
+		return result;
 	}
 
-	//void setInputManager( InputManager inputManager ) {
-		//this.inputManager = inputManager;
-	//}
-	
 	void setText( in string stringLetters, ref int postion ) {
 		letters.length = 0;
 		double bar = stringLetters.length;
@@ -47,7 +50,9 @@ public:
 			if ( udtimes == 5 )
 				udtimes = 1;
 		}
-		postion = cast(int)bar - 1;
+		postion = cast(int)bar - 1; //#redundant
+		with ( letterBase )
+			input.pos = cast(int)bar - 1;
 		placeLetters();
 	}
 
@@ -72,11 +77,15 @@ public:
 			int x = 0, y = 0;
 			foreach( i, ref l; letters ) {
 				auto let = jtoCharPtr( l.letter );
+				// if do new line
 				if ( x + g_width > xpos + width || let[0] == g_lf ) {
-					x = ( let[0] == g_lf ? - g_width : 0);
+					x = ( let[0] == g_lf ? -g_width : 0);
 					y += g_height;
-					if ( y + g_height > ypos + height)
-						break;
+					if ( y + g_height > ypos + height) {
+						foreach( l2; letters )
+							l2.ypos -= g_height;
+						y -= g_height;
+					}
 				}
 				l.setPostion( x, y );
 				l.update();
@@ -106,8 +115,8 @@ public:
 	}
 	@property ref auto letterBase() { return m_letterBase; }
 private:
-	Bmp m_area;
 	LetterBase m_letterBase;
+	Bmp m_area;
 	Letter[] m_letters;
 	Square m_square;
 }

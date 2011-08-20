@@ -1,3 +1,4 @@
+//#this goes in the dmd arguments
 //#exit
 //#draw letter
 //#to stop bouncing
@@ -11,6 +12,9 @@
  * 
  * JECA: (thin DAllegro wrapper)  https://github.com/joelcnz/Jeca
  */
+
+//version = Terminal; //#this goes in the dmd arguments
+version = Maths;
 
 version( Windows ) {
 	pragma( lib, "liballegro5" );
@@ -26,7 +30,7 @@ import base, letterbase, lettermanager, inputmanager;
  */
 void main( string[] args ) {
 	//Init( args ~ "-mode opengl -wxh 640 480".split() );
-	Init( args ~ "-wxh 640 480".split() );
+	Init( "-wxh 640 480".split() ~ args );
 	scope( exit ) Deinit();
 
 	auto fonts = "ddrolive.bmp ddrocr.bmp".split;
@@ -38,39 +42,46 @@ void main( string[] args ) {
 	g_bmpLetters = getLetters(
 		lettersSource, null, g_width + 1);
 	
-	auto letterBase = new LetterBase(
-		new LetterManager(
-				Square( 0, 480 - g_height * 3, 640, 480 ),
-				""
-		)
-	);
 
-	letterBase.letterManager.setLetterBase( letterBase );
-	letterBase.inputManager.setLetterBase( letterBase );
+	version( Maths ) {
+		auto letterBaseMaths = new LetterBase(
+			new LetterManager( Square( 0, 0, DISPLAY_W, DISPLAY_H ) ) );
+		letterBaseMaths.text.setLetterBase( letterBaseMaths );
+		letterBaseMaths.input.setLetterBase( letterBaseMaths );
+		maths( letterBaseMaths );
+		return;
+	}
+	
+	auto letterBase = new LetterBase(
+		new LetterManager( Square( 0, DISPLAY_H - g_height * 3, DISPLAY_W, DISPLAY_H ) ) );
+
+	letterBase.text.setLetterBase( letterBase );
+	letterBase.input.setLetterBase( letterBase );
 	
 	auto mainText = new LetterBase(
-		new LetterManager(
-				Square( 0, 0, 640, 480 - g_height * 3 ),
-				cast(string)std.file.read( "jecatext.txt" )
-		)
+			new LetterManager( Square( 0, 0, DISPLAY_W, DISPLAY_H - g_height * 3 ) )
 	);
+
+	int dummy;
+	mainText.text.setText( cast(string)std.file.read( "jecatext.txt" ), dummy );
 	
 	with( mainText )
 		text.setLetterBase( mainText ),
 		input.setLetterBase( mainText );
+	return;
 
 	scope( exit )
 		std.file.write( "jecatext.txt", mainText.letterManager.getText() );
 	
-	Bmp stamp = new Bmp( 640, 480 );
+	Bmp stamp = new Bmp( DISPLAY_W, DISPLAY_H );
 
 	while( ! exitHandler.doKeysAndCloseHandling ) {
 		//#ALLEGRO_PIXEL_FORMAT_ANY undefined
 		al_lock_bitmap( stamp.bitmap,
 			al_get_bitmap_format( stamp.bitmap ),
 			ALLEGRO_LOCK_WRITEONLY );
-		al_clear_to_color( Colour.red );
 		al_set_target_bitmap( stamp.bitmap );
+		al_clear_to_color( Colour.red );
 
 		with( mainText )
 			text.draw();
@@ -79,7 +90,7 @@ void main( string[] args ) {
 			text.draw(),
 			input.draw();
 		
-		al_set_target_bitmap( al_get_backbuffer( DISPLAY ) );
+		al_set_target_backbuffer( DISPLAY );
 		al_draw_bitmap( stamp.bitmap, 0, 0, 0 );
 		al_unlock_bitmap( stamp.bitmap );
 
@@ -97,13 +108,13 @@ void main( string[] args ) {
 				text.getText() == "Alan" || 
 				text.getText() == "Hamish" ) {
 				text.setText(
-					"Oh, hello " ~ text.getText() ~ ", how are you? ",
+					"Oh, hello " ~ text.getText() ~ ", how are you?",
 					input.pos );
 			}
 			//#exit
 			if ( text.getText() == "exit" )
 				break;
-			//writeln( "<"~text.getText()~">" );
+
 			if ( text.letters.length > 0 && text[ text.count - 1 ].letter == g_lf ) {
 				mainText.text.setText(
 					mainText.text.getText() ~ text.getText(), mainText.input.pos );
@@ -154,11 +165,99 @@ version( SomeKindOfWrap ) {
 +/
 }
 
-/+
-	with( text )
-		setText( format( "%s+%s=%s", getText()[0 .. 1], getText()[2 .. 3],
-			to!int( getText()[0 .. 1] ) + to!int( getText()[2 .. 3] )
-		),
-		input.pos
-	);
-+/
+version( Maths ) {
+	import std.random;
+
+	void maths( LetterBase letterBase ) {
+		Bmp stamp = new Bmp( DISPLAY_W, DISPLAY_H );
+
+		bool refresh() {
+			al_lock_bitmap( stamp.bitmap,
+				al_get_bitmap_format( stamp.bitmap ),
+				ALLEGRO_LOCK_WRITEONLY );
+			al_set_target_bitmap( stamp.bitmap );
+			
+			with( letterBase )
+				text.draw(),
+				input.draw();
+			
+			al_set_target_backbuffer( DISPLAY );
+			al_draw_bitmap( stamp.bitmap, 0, 0, 0 );
+			al_unlock_bitmap( stamp.bitmap );
+
+			al_flip_display();
+			
+			with( letterBase ) {
+				input.doInput();
+				if ( text.letters[ $ - 1 ].letter == g_lf ) {
+					return false;
+				}
+				text.update();
+			}
+			
+			return true;
+		}
+
+		int[2] variables;
+		string user;
+		with( letterBase )
+			text.addTextln( "Enter 'quit' to exit" );
+		
+		int rand() { return uniform(0, 100); }
+		for (;;) {
+			foreach (ref v; variables)
+				v=rand;
+			int answer, guess;
+			answer=variables[0]+variables[1];
+			string problem;
+			do {
+				with( letterBase ) {
+					problem = text.getText() ~
+					to!string( variables[0] ) ~ "+" ~ to!string( variables[1] ) ~ "=";
+					text.setText( problem, letterBase.input.pos );
+				}
+
+				while( refresh() == true ) {
+					if ( exitHandler.doKeysAndCloseHandling )
+						goto quit;
+				}
+				with( letterBase )
+					if ( problem.length < text.count() )
+						user = text.getText()[ problem.length .. $ - 1 ];
+
+				if (user!="" && user[0]=='q')
+					goto quit;
+				if (isAValidNumber(user)==false) {
+					with( letterBase )
+						text.addTextln( "That wont do." );
+					continue;
+				}
+				guess=parse!int(user); // User input
+				if (guess==answer) {
+					with( letterBase )
+						text.addTextln( "It is!" );
+				}
+				else {
+					with( letterBase )
+						text.addTextln( (guess > answer ? "Less than" : "Greater then" ) );
+				}
+			} while (guess!=answer);
+		} //for
+	quit:
+		version( Terminal )
+			writeln("Ok then, see you later, do call again! :-)");
+		with( letterBase )
+			text.setText( text.getText()[ 0 .. text.count - 1 ] ~ g_lf
+			~ "Ok then, see you later, do call again! :-)", input.pos );
+		while( refresh() == true ) { }
+	}
+
+	bool isAValidNumber(string testNumber) {
+		if (testNumber.length==0)
+			return false;
+		foreach (chr; testNumber)
+			if (chr<'0' || chr>'9')
+				return false;
+		return true;
+	}
+} // version maths

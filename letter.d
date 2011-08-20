@@ -3,7 +3,7 @@ import base;
 class Letter {
 	@property ref auto xpos() { return m_xpos; } // ( 0<, 0 )
 	@property ref auto ypos() { return m_ypos; } // ( 0, >0 )
-	@property ref auto letter() { return m_letter; } // "c"
+	@property ref auto letter() { return m_letter; } // 'c' (dchar)
 	
 	void setPostion( double x, double y ) { xpos = x; ypos = y; }
 	
@@ -43,8 +43,6 @@ class Letter {
 			if ( tmp != m_ydir )
 				 m_yoff -= m_ydir;
 		}
-		//if ( m_id == 0 )
-		//	mixin( traceLine( "m_yoff m_ydir".split ) );
 		//m_yoff = 0; //#to stop bouncing
 		m_colour = makecol( m_shade, m_shade, m_shade );
 		m_shade += 5;
@@ -57,9 +55,6 @@ class Letter {
 	//#draw letter
 	void draw() {
 		if ( (letter & 0xFF) != 13 )
-			//al_draw_bitmap( g_bmpLetters[ letter & 0xFF ].bitmap,
-			//	xpos, ypos, 0 );
-			
 			al_draw_bitmap( g_bmpLetters[ letter & 0xFF ].bitmap,
 				xpos + m_xoff, ypos + m_yoff, 0 );
 			/+
@@ -71,7 +66,6 @@ class Letter {
 private:
 	static int m_idCurrent = 0;
 	int m_id;
-//	Bmp bmp;
 
 	double m_xpos, m_ypos,
 		m_xdir, m_ydir, m_width, m_height, m_roof, m_floor, m_xoff, m_yoff,
