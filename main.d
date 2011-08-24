@@ -1,20 +1,22 @@
-//#this goes in the dmd arguments
+//#not great
+//#that is set lock all to true or false
+//#what's this step thing (wrong sizes)
 //#exit
-//#draw letter
-//#to stop bouncing
-//#need this, or crashes
-//#Aaar, now this stopped it crashing (1 of 2 clears to stop the crashing) I dont think I memory stuff properly
 //#ALLEGRO_PIXEL_FORMAT_ANY undefined
 /**
  * This program uses:
  * 
- * DAllegro5:  https://github.com/SiegeLord/DAllegro5  
+ * The D Programming language - http://www.d-programming-language.org
  * 
- * JECA: (thin DAllegro wrapper)  https://github.com/joelcnz/Jeca
+ * Allegro 5.0 - http://alleg.sourceforge.net
+ * 
+ * DAllegro5 - https://github.com/SiegeLord/DAllegro5  
+ * 
+ * JECA: (thin DAllegro wrapper -  https://github.com/joelcnz/Jeca
  */
 
-//version = Terminal; //#this goes in the dmd arguments
 version = Maths;
+//version = NotePad;
 
 version( Windows ) {
 	pragma( lib, "liballegro5" );
@@ -23,22 +25,32 @@ version( Windows ) {
 }
 
 import jeca.all;
-import base, letterbase, lettermanager, inputmanager;
+import jext.all;
 
 /**
  * Program entry point
  */
 void main( string[] args ) {
-	//Init( args ~ "-mode opengl -wxh 640 480".split() );
+	version( Terminal )
+		foreach( c; 32 .. 128 )
+			write( cast(char)c );
+
 	Init( "-wxh 640 480".split() ~ args );
 	scope( exit ) Deinit();
-
+/+
+file 'ddrolive.txt' as follows:
+ddrocr.bmp
+16 25 # charater dimentions
+17 # loading step size
+ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂Press any key to continue . . .
++/
 	auto fonts = "ddrolive.bmp ddrocr.bmp".split;
-	int fontIndex = 1;
+	enum first = 0, second = 1;
+	int fontIndex = second;
 	auto lettersSource = Bmp.loadBitmap( fonts[ fontIndex ] );
 	al_convert_mask_to_alpha( lettersSource, al_get_pixel( lettersSource, 1, 0 ) );
 	if ( fontIndex == 1 )
-		al_convert_mask_to_alpha( lettersSource, al_get_pixel( lettersSource, 17, 0 ) );
+		al_convert_mask_to_alpha( lettersSource, al_get_pixel( lettersSource, g_width + 1, 0 ) );
 	g_bmpLetters = getLetters(
 		lettersSource, null, g_width + 1);
 	
@@ -62,18 +74,22 @@ void main( string[] args ) {
 			new LetterManager( Square( 0, 0, DISPLAY_W, DISPLAY_H - g_height * 3 ) )
 	);
 
-	int dummy;
-	mainText.text.setText( cast(string)std.file.read( "jecatext.txt" ), dummy );
-	
-	with( mainText )
+	with( mainText ) {
 		text.setLetterBase( mainText ),
 		input.setLetterBase( mainText );
-	return;
+		text.alternate = true;
+	}
+
+	if ( exists( "jecatext.txt" ) )
+		mainText.text.setText( cast(string)std.file.read( "jecatext.txt" ) );
 
 	scope( exit )
-		std.file.write( "jecatext.txt", mainText.letterManager.getText() );
+		if ( exists( "jecatext.txt" ) )
+			std.file.write( "jecatext.txt", mainText.letterManager.getText() );
 	
 	Bmp stamp = new Bmp( DISPLAY_W, DISPLAY_H );
+	scope( exit )
+		clear( stamp );
 
 	while( ! exitHandler.doKeysAndCloseHandling ) {
 		//#ALLEGRO_PIXEL_FORMAT_ANY undefined
@@ -83,12 +99,19 @@ void main( string[] args ) {
 		al_set_target_bitmap( stamp.bitmap );
 		al_clear_to_color( Colour.red );
 
-		with( mainText )
-			text.draw();
-
+		version( NotePad ) {
+			with( mainText )
+				text.draw(),
+				input.draw();
+		} else {
+			with( mainText )
+				text.draw();
+			with( letterBase )
+				input.draw();
+		}
+		
 		with( letterBase )
-			text.draw(),
-			input.draw();
+			text.draw();
 		
 		al_set_target_backbuffer( DISPLAY );
 		al_draw_bitmap( stamp.bitmap, 0, 0, 0 );
@@ -99,41 +122,49 @@ void main( string[] args ) {
 		with( mainText )
 			text.update();
 
-		with( letterBase )
-			input.doInput(),
-			text.update();
-		
-		with( letterBase ) {
-			if ( text.getText() == "Timothy" || 
-				text.getText() == "Alan" || 
-				text.getText() == "Hamish" ) {
-				text.setText(
-					"Oh, hello " ~ text.getText() ~ ", how are you?",
-					input.pos );
-			}
-			//#exit
-			if ( text.getText() == "exit" )
-				break;
-
-			if ( text.letters.length > 0 && text[ text.count - 1 ].letter == g_lf ) {
-				mainText.text.setText(
-					mainText.text.getText() ~ text.getText(), mainText.input.pos );
-				text.setText( "", input.pos );
-			}
+		version( NotePad ) {
+			with( letterBase )
+				text.update();
+			with( mainText )
+				input.doInput();
+		} else {
+			with( letterBase )
+				input.doInput(),
+				text.update();
 		}
+		
+		version( NotePad ) {
+		} else {
+			with( letterBase ) {
+				if ( text.getText() == "Timothy" || 
+					text.getText() == "Alan" || 
+					text.getText() == "Hamish" ) {
+					text.setText(
+						"Oh, hello " ~ text.getText() ~ ", how are you?" );
+				}
+				//#exit
+				if ( text.getText() == "exit" )
+					break;
+
+				if ( text.letters.length > 0 && text[ text.count - 1 ].letter == g_lf ) {
+					mainText.text.setText(
+						mainText.text.getText() ~ text.getText() );
+					text.setText( "" );
+				}
+			}
+		} // not notepad
 	}
-	
-	clear( stamp );
 }
 
+//#what's this step thing (wrong sizes)
 Bmp[256] getLetters( ALLEGRO_BITMAP* bmp, in string order, int step ) {
 	Bmp[256] letters;
 	foreach( i; 0 .. 256 ) {
 		if ( i >= 33 && i < 128 ) {
 			letters[ i ] = Bmp.getBmpSlice(
 				bmp,
-				(i - 33) * step, 1,
-				step, g_height - 1,
+				1 + (i - 33) * step, 1,
+				g_width, g_height - 1,
 				0, 0,
 				0
 			);
@@ -142,11 +173,10 @@ Bmp[256] getLetters( ALLEGRO_BITMAP* bmp, in string order, int step ) {
 			al_draw_bitmap( bmp, 0, 0, 0 );
 			al_draw_bitmap( letters[ i ].bitmap, (i - 33) * step, 32, 0 );
 		} else {
-			letters[ i ] = new Bmp( step, step );
+			letters[ i ] = new Bmp( g_width, g_height );
 		}
 	}
 	al_flip_display();
-	//poll_input_wait();
 	
 	return letters;
 }
@@ -188,10 +218,12 @@ version( Maths ) {
 			al_flip_display();
 			
 			with( letterBase ) {
-				input.doInput();
-				if ( text.letters[ $ - 1 ].letter == g_lf ) {
+				if ( text.count != 0
+					&& text.letters[ $ - 1 ].lock == false
+					&& text.letters[ $ - 1 ].letter == g_lf ) {
 					return false;
 				}
+				input.doInput();
 				text.update();
 			}
 			
@@ -212,9 +244,15 @@ version( Maths ) {
 			string problem;
 			do {
 				with( letterBase ) {
+					text.setLockAll( false ); //#that is set lock all to true or false
 					problem = text.getText() ~
-					to!string( variables[0] ) ~ "+" ~ to!string( variables[1] ) ~ "=";
-					text.setText( problem, letterBase.input.pos );
+						to!string( variables[0] ) ~ "+" ~ to!string( variables[1] )
+						~ "=";
+					
+					//problem = "";
+					
+					text.setText( problem );
+					text.setLockAll( true );
 				}
 
 				while( refresh() == true ) {
@@ -235,20 +273,21 @@ version( Maths ) {
 				guess=parse!int(user); // User input
 				if (guess==answer) {
 					with( letterBase )
-						text.addTextln( "It is!" );
+						text.addTextln( "Good" );
 				}
 				else {
 					with( letterBase )
-						text.addTextln( (guess > answer ? "Less than" : "Greater then" ) );
+						text.addTextln( (guess > answer ? "Less than" : "Greater than" ) );
 				}
 			} while (guess!=answer);
 		} //for
 	quit:
-		version( Terminal )
-			writeln("Ok then, see you later, do call again! :-)");
-		with( letterBase )
-			text.setText( text.getText()[ 0 .. text.count - 1 ] ~ g_lf
-			~ "Ok then, see you later, do call again! :-)", input.pos );
+		with( letterBase ) {
+			string last;
+			if ( text.count > 0 )
+				last = text.getText()[ 0 .. text.count ] ~ newline; //#not great
+			text.setText( last ~ "Ok then, see you later, do call again! :-)" );
+		}
 		while( refresh() == true ) { }
 	}
 

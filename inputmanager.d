@@ -1,7 +1,11 @@
+module jext.inputmanager;
+
+//#unused
+//#unused
 //#character adder
 import std.c.stdio;
 
-import base, letterbase, lettermanager, letter;
+import jext.all;
 
 class InputManager {
 public:
@@ -15,7 +19,7 @@ public:
 		this.letterBase = letterBase;
 	}
 	
-	void doInput() {
+	dchar doInput() {
 		int c = 0;
 		c = readkey();
 
@@ -24,15 +28,44 @@ public:
 			
 			auto wait = false;
 
-			if ( key[ ALLEGRO_KEY_LCTRL ] ) {
+			if ( key[ ALLEGRO_KEY_LCTRL ]  || key[ ALLEGRO_KEY_RCTRL ] ) {
 				wait = true;
-				if ( key[ ALLEGRO_KEY_LEFT ] ) {
+				
+				if ( key[ ALLEGRO_KEY_C ] && letterManager.count > 0 ) {
 					int i = 0;
-					for( i = pos - 1;
-						i > -1 && letterManager.letters[ i ].letter != ' ' ; --i )
+					for( i = letterManager.count() - 1;
+						i >= 0 && letterManager.letters[ i ].lock == false; --i )
 					{}
-					if ( pos > -1 )
-						pos = i;
+					debug
+						mixin( traceLine( "/+ copy: +/ i" ) );
+					letterManager.copiedText = letterManager.getText()[ i + 1.. $ ];
+				}
+
+				if ( key[ ALLEGRO_KEY_V ] && letterManager.count > 0 ) {
+					int i = 0;
+					for( i = letterManager.count() - 1;
+						i >= 0 && letterManager.letters[ i ].lock == false; --i )
+					{}
+					debug
+						mixin( traceLine( "/+ paste: +/ i" ) );
+					letterManager.setText( letterManager.getText()[ 0 .. i + 1 ]
+						~ letterManager.copiedText );
+					foreach( index;
+						0 .. letterManager.count - letterManager.copiedText.length )
+						letterManager[ index ].lock = true;
+					pos = letterManager.count - 1;
+				}
+				
+				if ( key[ ALLEGRO_KEY_LEFT ] ) {
+					if ( letterManager.letters[ pos ].lock != true ) {
+						int i = 0;
+						for( i = pos - 1;
+							i > -1 && letterManager.letters[ i ].letter != ' '
+							&& letterManager.letters[ i ].lock == false; --i )
+						{}
+						if ( pos > -1 )
+							pos = i;
+					}
 				}
 				if ( key[ ALLEGRO_KEY_RIGHT ] ) {
 					int i = 0;
@@ -45,11 +78,24 @@ public:
 					else
 						pos = letterManager.letters.length - 1;
 				}
-			} else {
-				if ( key[ ALLEGRO_KEY_LEFT ] ) {
+				
+				if ( key[ ALLEGRO_KEY_HOME ] ) {
+					int i = pos;
+					for( i = pos; i >= -1 && letterManager.letters[ i ].lock == false; --i )
+					{}
+					pos = i;
+				}
+
+				if ( key[ ALLEGRO_KEY_END ] )
+					pos = letterManager.letters.length - 1;
+
+			} else { // not control down
+				if ( key[ ALLEGRO_KEY_LEFT ] && letterManager.count > 0 ) {
 					--pos;
 					if ( pos == -2 )
 						pos = -1;
+					if ( letterManager.letters[ pos + 1 ].lock == true )
+						++pos;
 					wait = true;
 				}
 
@@ -60,12 +106,64 @@ public:
 					wait = true;
 				}
 				
-				if ( key[ ALLEGRO_KEY_HOME ] )
-					pos = -1;
-
-				if ( key[ ALLEGRO_KEY_END ] )
-					pos = letterManager.letters.length - 1;
-			}
+				if ( key[ ALLEGRO_KEY_UP ] && letterManager.count > 0 ) {
+					with( letterManager ) {
+						int lastPos = pos;
+						int xpos = cast(int)letters[ pos ].xpos,
+							ypos = cast(int)letters[ pos ].ypos - g_height;
+						//int last = ypos; //#unused
+						auto bingo = false;
+						foreach( i, l; letters[ 0 .. pos ] ) {
+							if ( l.xpos == xpos && l.ypos == ypos ) {
+								pos = i;
+								bingo = true;
+								break;
+							}
+						} // foreach
+						if ( bingo == false ) {
+							for( int i = pos; i >= 0; --i )
+								if ( letters[ i ].letter == g_lf ) {
+									pos = i;
+									if ( pos != 0 )
+										--pos;
+									break;
+								}
+						}
+						if ( count > 0 && letters[ pos + 1 ].lock == true )
+							pos = lastPos;
+					} // with
+					wait = true;
+				} // key up
+				
+				if ( key[ ALLEGRO_KEY_DOWN ] && letterManager.count > 0 ) {
+					with( letterManager ) {
+						int xpos = cast(int)letters[ pos ].xpos,
+							ypos = cast(int)letters[ pos ].ypos + g_height;
+						//int last = ypos; //#unused
+						auto bingo = false;
+						foreach( i, l; letters[ pos .. $ ] ) {
+							if ( l.xpos == xpos && l.ypos == ypos ) {
+								pos = pos + i;
+								bingo = true;
+								break;
+							}
+						} // foreach
+						if ( bingo == false ) {
+							for( int i = pos; i < letters.length; ++i ) {
+								if ( ( ypos + g_height == letters[i].ypos &&
+									letters[i].letter == g_lf )
+									|| i == letters.length - 1 ) {
+									pos = i;
+									if ( i != letters.length - 1 && pos - 1 > -1 )
+										--pos;
+									break;
+								}
+							}
+						}
+					} // with
+					wait = true;
+				} // key down
+			} // if not control pressed
 			
 			if ( wait )
 				poll_input_wait();
@@ -85,7 +183,7 @@ public:
 					// #              #
 					//mixin( traceLine( "pos letters.length".split ) );
 					letters = letters[ 0 .. pos + 1 ] ~
-						new Letter( c & 0xFF ) ~ letters[ pos + 1 .. $ ];
+						new Letter( chr( c ) ) ~ letters[ pos + 1 .. $ ];
 					++pos;
 					placeLetters();
 				}
@@ -93,14 +191,17 @@ public:
 			
 			if ( tkey( c, ALLEGRO_KEY_ENTER ) || tkey( c, ALLEGRO_KEY_PAD_ENTER ) ) {
 				with( letterManager ) {
+					//letters = letters[ 0 .. pos + 1 ] ~	new Letter( g_cr ) ~ new Letter( g_lf ) ~ letters[ pos + 1 .. $ ];
 					letters = letters[ 0 .. pos + 1 ] ~
-						new Letter( g_lf ) ~ letters[ pos + 1 .. $ ];
-					++pos;
+						new Letter( g_lf ) ~
+						letters[ pos + 1 .. $ ];
+					pos += 1;
 					placeLetters();
 				}
 			}
 			
-			if ( tkey( c, ALLEGRO_KEY_BACKSPACE ) && pos > -1 ) {
+			if ( tkey( c, ALLEGRO_KEY_BACKSPACE ) && pos > -1
+				&& letterManager.letters[ pos ].lock == false ) {
 				doPut = true;
 				version( Terminal )
 					write( " \b" );
@@ -118,7 +219,7 @@ public:
 				//   #                #
 				with( letterManager )
 					letters = letters[ 0 .. pos + 1 ] ~ letters[ pos + 2 .. $ ],
-					letterManager.placeLetters();
+					placeLetters();
 			}
 
 			version( Terminal ) {
@@ -127,6 +228,8 @@ public:
 				std.stdio.stdout.flush;
 			}
 		}
+		
+		return chr( c ); //#unused
 	}
 	
 	void draw() {
