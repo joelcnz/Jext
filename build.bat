@@ -1,1 +1,1 @@
-dmd -lib -oflibjext main base letterbase lettermanager inputmanager letter -debug=TDD
+dmd -lib -oflibjext main all base letterbase lettermanager inputmanager letter -debug=TDD
