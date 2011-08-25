@@ -1,0 +1,867 @@
+---------- \jpro\dpro2\Jext\all.d ----------
+
+module jext.all;
+
+public import 
+.   jext.base,
+.   jext.letterbase,
+.   jext.lettermanager,
+.   jext.inputmanager,
+.   jext.letter;
+
+---------- \jpro\dpro2\Jext\base.d ----------
+
+module jext.base;
+
+private import std.conv, std.ascii;
+
+public import std.stdio, std.string, std.conv, std.file;
+public import jeca.all;
+
+char g_cr = newline[0];
+char g_lf = newline[1];
+
+Bmp[] g_bmpLetters;
+int g_width = 16,
+.   g_height = 25;
+
+struct Square {
+.   int xpos, ypos, width, height;
+}
+
+---------- \jpro\dpro2\Jext\inputmanager.d ----------
+
+module jext.inputmanager;
+
+//#unused
+//#unused
+//#character adder
+import std.c.stdio;
+
+import jext.all;
+
+class InputManager {
+public:
+.   this( LetterManager letterManager ) {
+.   .   this.letterManager = letterManager;
+
+.   .   pos = letterManager.letters.length - 1;
+.   }
+.   
+.   void setLetterBase( LetterBase letterBase ) {
+.   .   this.letterBase = letterBase;
+.   }
+.   
+.   dchar doInput() {
+.   .   int c = 0;
+.   .   c = readkey();
+
+.   .   void directional() {
+.   .   .   poll_input();
+.   .   .   
+.   .   .   auto wait = false;
+
+.   .   .   if ( key[ ALLEGRO_KEY_LCTRL ]  || key[ ALLEGRO_KEY_RCTRL ] ) {
+.   .   .   .   wait = true;
+.   .   .   .   
+.   .   .   .   if ( key[ ALLEGRO_KEY_C ] && letterManager.count > 0 ) {
+.   .   .   .   .   int i = 0;
+.   .   .   .   .   for( i = letterManager.count() - 1;
+.   .   .   .   .   .   i >= 0 && letterManager.letters[ i ].lock == false; --i )
+.   .   .   .   .   {}
+.   .   .   .   .   debug
+.   .   .   .   .   .   mixin( traceLine( "/+ copy: +/ i" ) );
+.   .   .   .   .   letterManager.copiedText = letterManager.getText()[ i + 1.. $ ];
+.   .   .   .   }
+
+.   .   .   .   if ( key[ ALLEGRO_KEY_V ] && letterManager.count > 0 ) {
+.   .   .   .   .   int i = 0;
+.   .   .   .   .   for( i = letterManager.count() - 1;
+.   .   .   .   .   .   i >= 0 && letterManager.letters[ i ].lock == false; --i )
+.   .   .   .   .   {}
+.   .   .   .   .   debug
+.   .   .   .   .   .   mixin( traceLine( "/+ paste: +/ i" ) );
+.   .   .   .   .   letterManager.setText( letterManager.getText()[ 0 .. i + 1 ]
+.   .   .   .   .   .   ~ letterManager.copiedText );
+.   .   .   .   .   letterManager[
+.   .   .   .   .   .   letterManager.count - letterManager.copiedText.length - 1 ].lock
+.   .   .   .   .   .   = true;
+.   .   .   .   .   pos = letterManager.count - 1;
+.   .   .   .   }
+.   .   .   .   
+.   .   .   .   if ( key[ ALLEGRO_KEY_LEFT ] ) {
+.   .   .   .   .   if ( letterManager.letters[ pos ].lock != true ) {
+.   .   .   .   .   .   int i = 0;
+.   .   .   .   .   .   for( i = pos - 1;
+.   .   .   .   .   .   .   i > -1 && letterManager.letters[ i ].letter != ' '
+.   .   .   .   .   .   .   && letterManager.letters[ i ].lock == false; --i )
+.   .   .   .   .   .   {}
+.   .   .   .   .   .   if ( pos > -1 )
+.   .   .   .   .   .   .   pos = i;
+.   .   .   .   .   }
+.   .   .   .   }
+.   .   .   .   if ( key[ ALLEGRO_KEY_RIGHT ] ) {
+.   .   .   .   .   int i = 0;
+.   .   .   .   .   for( i = pos + 1;
+.   .   .   .   .   .   i < letterManager.letters.length &&
+.   .   .   .   .   .   letterManager.letters[ i ].letter != ' ' ; ++i )
+.   .   .   .   .   {}
+.   .   .   .   .   if ( i < letterManager.letters.length )
+.   .   .   .   .   .   pos = i;
+.   .   .   .   .   else
+.   .   .   .   .   .   pos = letterManager.letters.length - 1;
+.   .   .   .   }
+.   .   .   .   
+.   .   .   .   if ( key[ ALLEGRO_KEY_HOME ] ) {
+.   .   .   .   .   int i = pos;
+.   .   .   .   .   for( i = pos; i >= -1 && letterManager.letters[ i ].lock == false; --i )
+.   .   .   .   .   {}
+.   .   .   .   .   pos = i;
+.   .   .   .   }
+
+.   .   .   .   if ( key[ ALLEGRO_KEY_END ] )
+.   .   .   .   .   pos = letterManager.letters.length - 1;
+
+.   .   .   } else { // not control down
+.   .   .   .   if ( key[ ALLEGRO_KEY_LEFT ] && letterManager.count > 0 ) {
+.   .   .   .   .   --pos;
+.   .   .   .   .   if ( pos == -2 )
+.   .   .   .   .   .   pos = -1;
+.   .   .   .   .   if ( letterManager.letters[ pos + 1 ].lock == true )
+.   .   .   .   .   .   ++pos;
+.   .   .   .   .   wait = true;
+.   .   .   .   }
+
+.   .   .   .   if ( key[ ALLEGRO_KEY_RIGHT ] ) {
+.   .   .   .   .   ++pos;
+.   .   .   .   .   if ( pos >= letterManager.letters.length  )
+.   .   .   .   .   .   --pos;
+.   .   .   .   .   wait = true;
+.   .   .   .   }
+.   .   .   .   
+.   .   .   .   if ( key[ ALLEGRO_KEY_UP ] && letterManager.count > 0 ) {
+.   .   .   .   .   with( letterManager ) {
+.   .   .   .   .   .   int lastPos = pos;
+.   .   .   .   .   .   int xpos = cast(int)letters[ pos ].xpos,
+.   .   .   .   .   .   .   ypos = cast(int)letters[ pos ].ypos - g_height;
+.   .   .   .   .   .   //int last = ypos; //#unused
+.   .   .   .   .   .   auto bingo = false;
+.   .   .   .   .   .   foreach( i, l; letters[ 0 .. pos ] ) {
+.   .   .   .   .   .   .   if ( l.xpos == xpos && l.ypos == ypos ) {
+.   .   .   .   .   .   .   .   pos = i;
+.   .   .   .   .   .   .   .   bingo = true;
+.   .   .   .   .   .   .   .   break;
+.   .   .   .   .   .   .   }
+.   .   .   .   .   .   } // foreach
+.   .   .   .   .   .   if ( bingo == false ) {
+.   .   .   .   .   .   .   for( int i = pos; i >= 0; --i )
+.   .   .   .   .   .   .   .   if ( letters[ i ].letter == g_lf ) {
+.   .   .   .   .   .   .   .   .   pos = i;
+.   .   .   .   .   .   .   .   .   if ( pos != 0 )
+.   .   .   .   .   .   .   .   .   .   --pos;
+.   .   .   .   .   .   .   .   .   break;
+.   .   .   .   .   .   .   .   }
+.   .   .   .   .   .   }
+.   .   .   .   .   .   if ( count > 0 && letters[ pos + 1 ].lock == true )
+.   .   .   .   .   .   .   pos = lastPos;
+.   .   .   .   .   } // with
+.   .   .   .   .   wait = true;
+.   .   .   .   } // key up
+.   .   .   .   
+.   .   .   .   if ( key[ ALLEGRO_KEY_DOWN ] && letterManager.count > 0 ) {
+.   .   .   .   .   with( letterManager ) {
+.   .   .   .   .   .   int xpos = cast(int)letters[ pos ].xpos,
+.   .   .   .   .   .   .   ypos = cast(int)letters[ pos ].ypos + g_height;
+.   .   .   .   .   .   //int last = ypos; //#unused
+.   .   .   .   .   .   auto bingo = false;
+.   .   .   .   .   .   foreach( i, l; letters[ pos .. $ ] ) {
+.   .   .   .   .   .   .   if ( l.xpos == xpos && l.ypos == ypos ) {
+.   .   .   .   .   .   .   .   pos = pos + i;
+.   .   .   .   .   .   .   .   bingo = true;
+.   .   .   .   .   .   .   .   break;
+.   .   .   .   .   .   .   }
+.   .   .   .   .   .   } // foreach
+.   .   .   .   .   .   if ( bingo == false ) {
+.   .   .   .   .   .   .   for( int i = pos; i < letters.length; ++i ) {
+.   .   .   .   .   .   .   .   if ( ( ypos + g_height == letters[i].ypos &&
+.   .   .   .   .   .   .   .   .   letters[i].letter == g_lf )
+.   .   .   .   .   .   .   .   .   || i == letters.length - 1 ) {
+.   .   .   .   .   .   .   .   .   pos = i;
+.   .   .   .   .   .   .   .   .   if ( i != letters.length - 1 && pos - 1 > -1 )
+.   .   .   .   .   .   .   .   .   .   --pos;
+.   .   .   .   .   .   .   .   .   break;
+.   .   .   .   .   .   .   .   }
+.   .   .   .   .   .   .   }
+.   .   .   .   .   .   }
+.   .   .   .   .   } // with
+.   .   .   .   .   wait = true;
+.   .   .   .   } // key down
+.   .   .   } // if not control pressed
+.   .   .   
+.   .   .   if ( wait )
+.   .   .   .   poll_input_wait();
+.   .   }
+.   .   directional();
+
+.   .   if ( c ) {
+.   .   .   auto doPut = false;
+.   .   .   
+.   .   .   //#character adder
+.   .   .   if ( chr( c ) >= 32 && ! tkey( c, ALLEGRO_KEY_DELETE ) ) {
+.   .   .   .   doPut = true;
+.   .   .   .   with( letterManager ) {
+.   .   .   .   .   //insert letter
+.   .   .   .   .   // pos = -1
+.   .   .   .   .   // Bd press a -> aBc
+.   .   .   .   .   // #              #
+.   .   .   .   .   //mixin( traceLine( "pos letters.length".split ) );
+.   .   .   .   .   letters = letters[ 0 .. pos + 1 ] ~
+.   .   .   .   .   .   new Letter( chr( c ) ) ~ letters[ pos + 1 .. $ ];
+.   .   .   .   .   ++pos;
+.   .   .   .   .   placeLetters();
+.   .   .   .   }
+.   .   .   }
+.   .   .   
+.   .   .   if ( tkey( c, ALLEGRO_KEY_ENTER ) || tkey( c, ALLEGRO_KEY_PAD_ENTER ) ) {
+.   .   .   .   with( letterManager ) {
+.   .   .   .   .   //letters = letters[ 0 .. pos + 1 ] ~.   new Letter( g_cr ) ~ new Letter( g_lf ) ~ letters[ pos + 1 .. $ ];
+.   .   .   .   .   letters = letters[ 0 .. pos + 1 ] ~
+.   .   .   .   .   .   new Letter( g_lf ) ~
+.   .   .   .   .   .   letters[ pos + 1 .. $ ];
+.   .   .   .   .   pos += 1;
+.   .   .   .   .   placeLetters();
+.   .   .   .   }
+.   .   .   }
+.   .   .   
+.   .   .   if ( tkey( c, ALLEGRO_KEY_BACKSPACE ) && pos > -1
+.   .   .   .   && letterManager.letters[ pos ].lock == false ) {
+.   .   .   .   doPut = true;
+.   .   .   .   version( Terminal )
+.   .   .   .   .   write( " \b" );
+.   .   .   .   with( letterManager )
+.   .   .   .   .   letters = letters[ 0 .. pos ] ~ letters[ pos + 1 .. $ ];
+.   .   .   .   --pos;
+.   .   .   .   letterManager.placeLetters();
+.   .   .   }
+.   .   .   
+.   .   .   //Suck - it sucks (letters that is)
+.   .   .   if ( tkey( c, ALLEGRO_KEY_DELETE )
+.   .   .   .   && pos != letterManager.count - 1 ) {
+.   .   .   .   // pos = 0
+.   .   .   .   // a*Bc press del -> ac
+.   .   .   .   //   #                #
+.   .   .   .   with( letterManager )
+.   .   .   .   .   letters = letters[ 0 .. pos + 1 ] ~ letters[ pos + 2 .. $ ],
+.   .   .   .   .   placeLetters();
+.   .   .   }
+
+.   .   .   version( Terminal ) {
+.   .   .   .   if ( doPut ) 
+.   .   .   .   .   write( cast(char)c ~ "#\b" );
+.   .   .   .   std.stdio.stdout.flush;
+.   .   .   }
+.   .   }
+.   .   
+.   .   return chr( c ); //#unused
+.   }
+.   
+.   void draw() {
+.   .   double xpos;
+.   .   double ypos;
+.   .   if ( letterManager.letters.length > 0 && pos > -1 ) {
+.   .   .   xpos = letterManager[ pos ].xpos;
+.   .   .   ypos = letterManager[ pos ].ypos;
+.   .   } else {
+.   .   .   xpos = -g_width;
+.   .   .   ypos = 0;
+.   .   }
+.   .   if ( xpos + g_width >= DISPLAY_W )
+.   .   .   xpos = -g_width,
+.   .   .   ypos += g_height;
+.   .   
+.   .   al_draw_filled_rectangle(
+.   .   .   letterManager.square.xpos + xpos + g_width + 1, letterManager.square.ypos + ypos,
+.   .   .   letterManager.square.xpos + xpos + g_width * 2 + 1, letterManager.square.ypos + ypos + g_height,
+.   .   .   al_map_rgba( 0, 0, 255, 128 ) );
+.   }
+.   
+.   @property ref auto letterBase() { return m_letterBase; }
+.   @property ref auto letterManager() { return m_letterManager; }
+.   @property ref auto pos() { return m_pos; }
+private:
+.   int m_pos;
+.   LetterBase m_letterBase;
+.   LetterManager m_letterManager;
+}
+
+---------- \jpro\dpro2\Jext\letter.d ----------
+
+//#draw letter
+module jext.letter;
+
+import jext.all;
+
+class Letter {
+.   @property ref auto xpos() { return m_xpos; } // ( 0<, 0 )
+.   @property ref auto ypos() { return m_ypos; } // ( 0 ,>0 )
+.   @property ref auto letter() { return m_letter; } // 'c' (dchar)
+.   @property ref auto lock() { return m_lock; }
+.   @property ref auto alternate() { return m_alternate; }
+.   @property ref auto altColour() { return m_altColour; }
+.   
+.   void setPostion( double x, double y ) { xpos = x; ypos = y; }
+.   
+.   this( dchar letter ) {
+.   .   m_id = m_idCurrent;
+.   .   ++m_idCurrent;
+.   .   m_colour = Colour.amber;
+.   .   alternate = false;
+
+.   .   this.letter = letter;
+.   .   m_xdir = 0;
+.   .   m_ydir = -1;
+.   .   m_roof = -999;
+.   .   m_floor = 0;
+.   .   m_height = 3;
+.   .   m_xoff = m_yoff = 0;
+.   .   m_shade = 0;
+.   .   
+.   .   acol = Colour.red, bcol = Colour.blue, abcol =  0.0;
+.   }
+.   
+.   ~this() {
+.   .   //clear( bmp ); //#need this, or crashes
+.   }
+.   
+.   void update() {
+.   .   if ( m_roof == -999 ) {
+.   .   .   m_roof = -3, m_floor = 0;
+.   .   } else {
+.   .   .   m_yoff += m_ydir;
+.   .   .   dub tmp = m_ydir;
+.   .   .   if ( m_yoff < m_roof )
+.   .   .   .   m_ydir = 1;
+
+.   .   .   if ( m_yoff > m_floor )
+.   .   .   .   m_ydir = -1;
+
+.   .   .   if ( tmp != m_ydir )
+.   .   .   .    m_yoff -= m_ydir;
+.   .   }
+.   .   m_yoff = 0; //#to stop bouncing
+.   .   m_colour = makecol( m_shade, m_shade, m_shade );
+.   .   m_shade += 5;
+.   .   
+.   .   abcol += 256 / 100 * 3;
+.   .   if ( abcol > 100.0 )
+.   .   .   abcol = 0.0;
+.   }
+.   
+.   //#draw letter
+.   void draw() {
+.   .   if ( (letter & 0xFF) >= 32 )
+.   .   .   if ( ! alternate )
+.   .   .   .   al_draw_bitmap( g_bmpLetters[ letter & 0xFF ].bitmap,
+.   .   .   .   .   xpos + m_xoff, ypos + m_yoff, 0 );
+.   .   .   else {
+.   .   .   .   al_draw_tinted_bitmap( g_bmpLetters[ letter & 0xFF ].bitmap,
+.   .   .   .   .   Colour.amber,
+.   .   .   .   .   xpos, ypos, 0 );
+.   .   .   /+
+.   .   .   .   al_draw_tinted_bitmap( g_bmpLetters[ letter & 0xFF ].bitmap,
+.   .   .   .   .   altColour,
+.   .   .   .   .   xpos + m_xoff, ypos + m_yoff, 0 );
+.   .   .   +/
+.   .   .   /+
+.   .   .   .   al_draw_tinted_bitmap( g_bmpLetters[ letter & 0xFF ].bitmap,
+.   .   .   .   .   getBlend( acol, bcol, abcol ),
+.   .   .   .   .   xpos + m_xoff, ypos + m_yoff, 0 );
+.   .   .   +/
+.   .   .   }
+.   }
+private:
+.   static int m_idCurrent = 0;
+.   int m_id;
+
+.   double m_xpos, m_ypos,
+.   .   m_xdir, m_ydir, m_width, m_height, m_roof, m_floor, m_xoff, m_yoff,
+.   .   abcol;
+.   dchar m_letter;
+.   ALLEGRO_COLOR m_colour, acol, bcol,
+.   .   m_altColour;
+.   bool m_alternate;
+.   ubyte m_shade;
+.   bool m_lock;
+}
+
+---------- \jpro\dpro2\Jext\letterbase.d ----------
+
+//#not sure about these
+module jext.letterbase;
+
+import jext.all;
+
+class LetterBase {
+public:
+.   this( LetterManager letterManager ) {
+.   .   this.letterManager = letterManager;
+.   .   inputManager = new InputManager( letterManager );
+.   }
+.   
+.   @property ref auto letterManager() { return m_letterManager; }
+.   @property ref auto inputManager() { return m_inputManager; }
+.   
+.   //#not sure about these
+.   alias letterManager text;
+.   alias inputManager input;
+private:
+.   LetterManager m_letterManager;
+.   InputManager m_inputManager;
+}
+
+---------- \jpro\dpro2\Jext\lettermanager.d ----------
+
+//#is this worth keeping?
+//#not nice
+module jext.lettermanager;
+
+import jext.all;
+
+class LetterManager {
+public:
+.   @property ref auto letters() { return  m_letters; }
+.   @property ref auto area() { return m_area; }
+.   @property ref auto square() { return m_square; }
+.   @property ref auto alternate() { return m_alternate; }
+.   
+.   auto count() { return letters.length; }
+.   
+.   //#is this worth keeping?
+.   Letter opIndex( int pos ) {
+.   .   assert( pos >= 0 && pos < count, "opIndex" );
+.   .   return letters[ pos ];
+.   }
+
+.   this( Square square ) {
+.   .   this.square = square;
+.   .   with( square )
+.   .   .   area = new Bmp( width, height );
+.   .   //m_offx = m_offy = 0;
+.   }
+.   
+.   void setLockAll( bool lock0 ) {
+.   .   foreach( l; letters )
+.   .   .   l.lock = lock0;
+.   }
+.   
+.   void setLetterBase( LetterBase letterBase ) {
+.   .   this.letterBase = letterBase;
+.   }
+.   
+.   string addTextln( string str ) {
+.   .   string result = getText() ~ str ~ g_lf;
+.   .   setText( result );
+
+.   .   return result;
+.   }
+.   
+.   string addText( string str ) {
+.   .   string result = getText() ~ str;
+.   .   setText( result );
+
+.   .   return result;
+.   }
+
+.   void setText( in string stringLetters ) {
+.   .   letters.length = 0; // clear letter array
+.   .   double bar = stringLetters.length;
+.   .   auto countDown = 10;
+.   .   auto udtimes = 1;
+.   .   foreach( i, ref l; stringLetters ) {
+.   .   .   letters ~= new Letter( l );
+.   .   }
+.   .   with( letterBase )
+.   .   .   input.pos = cast(int)bar - 1;
+.   .   placeLetters();
+.   }
+
+.   string getText() {
+.   .   char[] str;
+.   .   foreach( l; letters ) {
+.   .   .   str ~= cast(char)l.letter;
+.   .   }
+
+.   .   return str.idup;
+.   }
+.   
+.   void placeLetters() {
+.   .   with( square ) {
+.   .   .   auto inword = false;
+.   .   .   auto startWordIndex = -1;
+.   .   .   ALLEGRO_COLOR[] altcols = [Colour.amber, Colour.red];
+.   .   .   auto altcolcyc = 0;
+.   .   .   int x = 0, y = 0;
+.   .   .   foreach( i, ref l; letters ) {
+.   .   .   .   auto let = cast(char)l.letter;// jtoCharPtr( l.letter );
+.   .   .   .   // if do new line
+.   .   .   .   if ( x + g_width > xpos + width || let == g_lf ) {
+.   .   .   .   .   x = ( let == g_lf ? -g_width : 0 );
+.   .   .   .   .   y += g_height;
+.   .   .   .   .   if ( alternate == true ) {
+.   .   .   .   .   .   altcolcyc = ( altcolcyc == 0 ? 1 : 0 );
+.   .   .   .   .   }
+.   .   .   .   .   if ( y + g_height > ypos + height) {
+.   .   .   .   .   .   foreach( l2; letters )
+.   .   .   .   .   .   .   l2.ypos -= g_height;
+.   .   .   .   .   .   y -= g_height;
+.   .   .   .   .   }
+.   .   .   .   }
+.   .   .   .   l.setPostion( x, y );
+.   .   .   .   if ( alternate == true ) {
+.   .   .   .   .   l.alternate = true; //#not nice
+.   .   .   .   .   l.altColour = altcols[ altcolcyc ];
+.   .   .   .   }
+.   .   .   .   x += g_width;
+.   .   .   }
+.   .   }
+.   }
+.   
+.   void update() {
+.   .   foreach( l; letters )
+.   .   .   l.update();
+.   }
+.   
+.   void draw() {
+.   .   auto bmp = al_get_target_bitmap();
+.   .   al_set_target_bitmap( area.bitmap );
+.   .   al_clear_to_color( Colour.black );
+.   .   /+
+.   .   al_draw_rectangle( 0.5, 0.5,
+.   .   .   al_get_bitmap_width( m_area.bitmap ), al_get_bitmap_height( m_area.bitmap ),
+.   .   .   Colour.white, 1 );
+.   .   +/
+.   .   if ( count > 0 )
+.   .   .   foreach( l; letters )
+.   .   .   .   l.draw();
+.   .   al_set_target_bitmap( bmp );
+.   .   with( square )
+.   .   .   al_draw_bitmap( area.bitmap, xpos, ypos, 0 );
+.   }
+
+.   @property ref auto letterBase() { return m_letterBase; }
+.   @property ref auto copiedText() { return m_copiedText; }
+private:
+.   LetterBase m_letterBase;
+.   Bmp m_area;
+.   Letter[] m_letters;
+.   bool m_alternate;
+.   Square m_square;
+.   string m_copiedText;
+}
+
+
+---------- \jpro\dpro2\Jext\main.d ----------
+
+//#not great
+//#that is set lock all to true or false
+//#what's this step thing (wrong sizes)
+//#exit
+//#ALLEGRO_PIXEL_FORMAT_ANY undefined
+/**
+ * This program uses:
+ * 
+ * The D Programming language - http://www.d-programming-language.org
+ * 
+ * Allegro 5.0 - http://alleg.sourceforge.net
+ * 
+ * DAllegro5 - https://github.com/SiegeLord/DAllegro5  
+ * 
+ * JECA: (thin DAllegro wrapper -  https://github.com/joelcnz/Jeca
+ */
+
+version = Maths;
+//version = NotePad;
+
+version( Windows ) {
+.   pragma( lib, "liballegro5" );
+.   pragma( lib, "libdallegro5" );
+.   pragma( lib, "libjeca" );
+}
+
+import jeca.all;
+import jext.all;
+
+/**
+ * Program entry point
+ */
+void main( string[] args ) {
+.   version( Terminal )
+.   .   foreach( c; 32 .. 128 )
+.   .   .   write( cast(char)c );
+
+.   Init( "-wxh 640 480".split() ~ args );
+.   scope( exit ) Deinit();
+/+
+file 'ddrolive.txt' as follows:
+ddrocr.bmp
+16 25 # charater dimentions
+17 # loading step size
+ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂Press any key to continue . . .
++/
+.   auto fonts = "ddrolive.bmp ddrocr.bmp".split;
+.   enum first = 0, second = 1;
+.   int fontIndex = second;
+.   auto lettersSource = Bmp.loadBitmap( fonts[ fontIndex ] );
+.   al_convert_mask_to_alpha( lettersSource, al_get_pixel( lettersSource, 1, 0 ) );
+.   if ( fontIndex == 1 )
+.   .   al_convert_mask_to_alpha( lettersSource, al_get_pixel( lettersSource, g_width + 1, 0 ) );
+.   g_bmpLetters = getLetters(
+.   .   lettersSource, null, g_width + 1);
+.   
+
+.   version( Maths ) {
+.   .   auto letterBaseMaths = new LetterBase(
+.   .   .   new LetterManager( Square( 0, 0, DISPLAY_W, DISPLAY_H ) ) );
+.   .   letterBaseMaths.text.setLetterBase( letterBaseMaths );
+.   .   letterBaseMaths.input.setLetterBase( letterBaseMaths );
+.   .   maths( letterBaseMaths );
+.   .   return;
+.   }
+.   
+.   auto letterBase = new LetterBase(
+.   .   new LetterManager( Square( 0, DISPLAY_H - g_height * 3, DISPLAY_W, DISPLAY_H ) ) );
+
+.   letterBase.text.setLetterBase( letterBase );
+.   letterBase.input.setLetterBase( letterBase );
+.   
+.   auto mainText = new LetterBase(
+.   .   .   new LetterManager( Square( 0, 0, DISPLAY_W, DISPLAY_H - g_height * 3 ) )
+.   );
+
+.   with( mainText ) {
+.   .   text.setLetterBase( mainText ),
+.   .   input.setLetterBase( mainText );
+.   .   text.alternate = true;
+.   }
+
+.   if ( exists( "jecatext.txt" ) )
+.   .   mainText.text.setText( cast(string)std.file.read( "jecatext.txt" ) );
+
+.   scope( exit )
+.   .   if ( exists( "jecatext.txt" ) )
+.   .   .   std.file.write( "jecatext.txt", mainText.letterManager.getText() );
+.   
+.   Bmp stamp = new Bmp( DISPLAY_W, DISPLAY_H );
+.   scope( exit )
+.   .   clear( stamp );
+
+.   while( ! exitHandler.doKeysAndCloseHandling ) {
+.   .   //#ALLEGRO_PIXEL_FORMAT_ANY undefined
+.   .   al_lock_bitmap( stamp.bitmap,
+.   .   .   al_get_bitmap_format( stamp.bitmap ),
+.   .   .   ALLEGRO_LOCK_WRITEONLY );
+.   .   al_set_target_bitmap( stamp.bitmap );
+.   .   al_clear_to_color( Colour.red );
+
+.   .   version( NotePad ) {
+.   .   .   with( mainText )
+.   .   .   .   text.draw(),
+.   .   .   .   input.draw();
+.   .   } else {
+.   .   .   with( mainText )
+.   .   .   .   text.draw();
+.   .   .   with( letterBase )
+.   .   .   .   input.draw();
+.   .   }
+.   .   
+.   .   with( letterBase )
+.   .   .   text.draw();
+.   .   
+.   .   al_set_target_backbuffer( DISPLAY );
+.   .   al_draw_bitmap( stamp.bitmap, 0, 0, 0 );
+.   .   al_unlock_bitmap( stamp.bitmap );
+
+.   .   al_flip_display();
+.   .   
+.   .   with( mainText )
+.   .   .   text.update();
+
+.   .   version( NotePad ) {
+.   .   .   with( letterBase )
+.   .   .   .   text.update();
+.   .   .   with( mainText )
+.   .   .   .   input.doInput();
+.   .   } else {
+.   .   .   with( letterBase )
+.   .   .   .   input.doInput(),
+.   .   .   .   text.update();
+.   .   }
+.   .   
+.   .   version( NotePad ) {
+.   .   } else {
+.   .   .   with( letterBase ) {
+.   .   .   .   if ( text.getText() == "Timothy" || 
+.   .   .   .   .   text.getText() == "Alan" || 
+.   .   .   .   .   text.getText() == "Hamish" ) {
+.   .   .   .   .   text.setText(
+.   .   .   .   .   .   "Oh, hello " ~ text.getText() ~ ", how are you?" );
+.   .   .   .   }
+.   .   .   .   //#exit
+.   .   .   .   if ( text.getText() == "exit" )
+.   .   .   .   .   break;
+
+.   .   .   .   if ( text.letters.length > 0 && text[ text.count - 1 ].letter == g_lf ) {
+.   .   .   .   .   mainText.text.setText(
+.   .   .   .   .   .   mainText.text.getText() ~ text.getText() );
+.   .   .   .   .   text.setText( "" );
+.   .   .   .   }
+.   .   .   }
+.   .   } // not notepad
+.   }
+}
+
+//#what's this step thing (wrong sizes)
+Bmp[256] getLetters( ALLEGRO_BITMAP* bmp, in string order, int step ) {
+.   Bmp[256] letters;
+.   foreach( i; 0 .. 256 ) {
+.   .   if ( i >= 33 && i < 128 ) {
+.   .   .   letters[ i ] = Bmp.getBmpSlice(
+.   .   .   .   bmp,
+.   .   .   .   1 + (i - 33) * step, 1,
+.   .   .   .   g_width, g_height - 1,
+.   .   .   .   0, 0,
+.   .   .   .   0
+.   .   .   );
+
+.   .   .   al_set_target_backbuffer( DISPLAY );
+.   .   .   al_draw_bitmap( bmp, 0, 0, 0 );
+.   .   .   al_draw_bitmap( letters[ i ].bitmap, (i - 33) * step, 32, 0 );
+.   .   } else {
+.   .   .   letters[ i ] = new Bmp( g_width, g_height );
+.   .   }
+.   }
+.   al_flip_display();
+.   
+.   return letters;
+}
+
+//version = SomeKindOfWrap;
+version( SomeKindOfWrap ) {
+/+
+.   .   if ( l.letter != 32 && inword == false )
+.   .   .   startWordIndex = i, inword = true;
+.   .   else if ( x > xpos + width && l.letter == 32 && inword == true ) {
+.   .   .   .   //startNewLine( startWordIndex ), inword = false;
+.   .   .   .   x = xpos;
+.   .   .   .   y += al_get_font_ascent( FONT ) +  al_get_font_descent( FONT );
+.   .   .   .   inword = false;
+.   .   .   }
++/
+}
+
+version( Maths ) {
+.   import std.random;
+
+.   void maths( LetterBase letterBase ) {
+.   .   Bmp stamp = new Bmp( DISPLAY_W, DISPLAY_H );
+
+.   .   bool refresh() {
+.   .   .   al_lock_bitmap( stamp.bitmap,
+.   .   .   .   al_get_bitmap_format( stamp.bitmap ),
+.   .   .   .   ALLEGRO_LOCK_WRITEONLY );
+.   .   .   al_set_target_bitmap( stamp.bitmap );
+.   .   .   
+.   .   .   with( letterBase )
+.   .   .   .   text.draw(),
+.   .   .   .   input.draw();
+.   .   .   
+.   .   .   al_set_target_backbuffer( DISPLAY );
+.   .   .   al_draw_bitmap( stamp.bitmap, 0, 0, 0 );
+.   .   .   al_unlock_bitmap( stamp.bitmap );
+
+.   .   .   al_flip_display();
+.   .   .   
+.   .   .   with( letterBase ) {
+.   .   .   .   if ( text.count != 0
+.   .   .   .   .   && text.letters[ $ - 1 ].lock == false
+.   .   .   .   .   && text.letters[ $ - 1 ].letter == g_lf ) {
+.   .   .   .   .   return false;
+.   .   .   .   }
+.   .   .   .   input.doInput();
+.   .   .   .   text.update();
+.   .   .   }
+.   .   .   
+.   .   .   return true;
+.   .   }
+
+.   .   int[2] variables;
+.   .   string user;
+.   .   with( letterBase )
+.   .   .   text.addTextln( "Enter 'quit' to exit" );
+.   .   
+.   .   int rand() { return uniform(0, 100); }
+.   .   for (;;) {
+.   .   .   foreach (ref v; variables)
+.   .   .   .   v=rand;
+.   .   .   int answer, guess;
+.   .   .   answer=variables[0]+variables[1];
+.   .   .   string problem;
+.   .   .   do {
+.   .   .   .   with( letterBase ) {
+.   .   .   .   .   text.setLockAll( false ); //#that is set lock all to true or false
+.   .   .   .   .   problem = text.getText() ~
+.   .   .   .   .   .   to!string( variables[0] ) ~ "+" ~ to!string( variables[1] )
+.   .   .   .   .   .   ~ "=";
+.   .   .   .   .   
+.   .   .   .   .   //problem = "";
+.   .   .   .   .   
+.   .   .   .   .   text.setText( problem );
+.   .   .   .   .   text.setLockAll( true );
+.   .   .   .   }
+
+.   .   .   .   while( refresh() == true ) {
+.   .   .   .   .   if ( exitHandler.doKeysAndCloseHandling )
+.   .   .   .   .   .   goto quit;
+.   .   .   .   }
+.   .   .   .   with( letterBase )
+.   .   .   .   .   if ( problem.length < text.count() )
+.   .   .   .   .   .   user = text.getText()[ problem.length .. $ - 1 ];
+
+.   .   .   .   if (user!="" && user[0]=='q')
+.   .   .   .   .   goto quit;
+.   .   .   .   if (isAValidNumber(user)==false) {
+.   .   .   .   .   with( letterBase )
+.   .   .   .   .   .   text.addTextln( "That wont do." );
+.   .   .   .   .   continue;
+.   .   .   .   }
+.   .   .   .   guess=parse!int(user); // User input
+.   .   .   .   if (guess==answer) {
+.   .   .   .   .   with( letterBase )
+.   .   .   .   .   .   text.addTextln( "Good" );
+.   .   .   .   }
+.   .   .   .   else {
+.   .   .   .   .   with( letterBase )
+.   .   .   .   .   .   text.addTextln( (guess > answer ? "Less than" : "Greater than" ) );
+.   .   .   .   }
+.   .   .   } while (guess!=answer);
+.   .   } //for
+.   quit:
+.   .   with( letterBase ) {
+.   .   .   string last;
+.   .   .   if ( text.count > 0 )
+.   .   .   .   last = text.getText()[ 0 .. text.count ] ~ newline; //#not great
+.   .   .   text.setText( last ~ "Ok then, see you later, do call again! :-)" );
+.   .   }
+.   .   while( refresh() == true ) { }
+.   }
+
+.   bool isAValidNumber(string testNumber) {
+.   .   if (testNumber.length==0)
+.   .   .   return false;
+.   .   foreach (chr; testNumber)
+.   .   .   if (chr<'0' || chr>'9')
+.   .   .   .   return false;
+.   .   return true;
+.   }
+} // version maths
+
