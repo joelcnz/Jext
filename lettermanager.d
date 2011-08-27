@@ -13,7 +13,7 @@ import jext.all;
 /// Letter Manager
 class LetterManager {
 public:
-	@property ref auto letters() { return  m_letters; } /// get/set letters
+	@property ref auto letters() { return  m_letters; } /// get/set letters (Letter[])
 	@property ref auto area() { return m_area; } /// get/set bounds
 	@property ref auto square() { return m_square; } /// get/set square (text box)
 	@property ref auto alternate() { return m_alternate; } /// get/set alternating colours on or off
@@ -33,6 +33,11 @@ public:
 		with( square )
 			area = new Bmp( width, height );
 		//m_offx = m_offy = 0;
+	}
+	
+	/// dctor(sp) Deal with C allocated memory
+	~this() {
+		clear( area ); // Clear the area!
 	}
 	
 	/// lock/unlock all letters
