@@ -1,4 +1,4 @@
-//#not great
+//#what's this! - the goto has got to go!
 //#that is set lock all to true or false
 //#what's this step thing (wrong sizes)
 //#exit
@@ -31,18 +31,22 @@ import jext.all;
  * Program entry point
  */
 void main( string[] args ) {
-	version( Terminal )
+	// display printing characters
+	version( Terminal ) {
 		foreach( c; 32 .. 128 )
 			write( cast(char)c );
+		writeln();
+	}
 
 	Init( "-wxh 640 480".split() ~ args );
 	scope( exit ) Deinit();
+
 /+
 file 'ddrolive.txt' as follows:
 ddrocr.bmp
 16 25 # charater dimentions
 17 # loading step size
- !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂Press any key to continue . . .
+ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂
 +/
 	auto fonts = "ddrolive.bmp ddrocr.bmp".split;
 	enum first = 0, second = 1;
@@ -54,7 +58,7 @@ ddrocr.bmp
 	g_bmpLetters = getLetters(
 		lettersSource, null, g_width + 1);
 	
-
+	//Do the maths version
 	version( Maths ) {
 		auto letterBaseMaths = new LetterBase(
 			new LetterManager( Square( 0, 0, DISPLAY_W, DISPLAY_H ) ) );
@@ -62,98 +66,98 @@ ddrocr.bmp
 		letterBaseMaths.input.setLetterBase( letterBaseMaths );
 		maths( letterBaseMaths );
 		return;
-	}
-	
-	auto letterBase = new LetterBase(
-		new LetterManager( Square( 0, DISPLAY_H - g_height * 3, DISPLAY_W, DISPLAY_H ) ) );
+	} else { // do the note pad version
+		auto letterBase = new LetterBase(
+			new LetterManager( Square( 0, DISPLAY_H - g_height * 3, DISPLAY_W, DISPLAY_H ) ) );
 
-	letterBase.text.setLetterBase( letterBase );
-	letterBase.input.setLetterBase( letterBase );
-	
-	auto mainText = new LetterBase(
-			new LetterManager( Square( 0, 0, DISPLAY_W, DISPLAY_H - g_height * 3 ) )
-	);
+		letterBase.text.setLetterBase( letterBase );
+		letterBase.input.setLetterBase( letterBase );
+		
+		auto mainText = new LetterBase(
+				new LetterManager( Square( 0, 0, DISPLAY_W, DISPLAY_H - g_height * 3 ) )
+		);
 
-	with( mainText ) {
-		text.setLetterBase( mainText ),
-		input.setLetterBase( mainText );
-		text.alternate = true;
-	}
+		with( mainText ) {
+			text.setLetterBase( mainText ),
+			input.setLetterBase( mainText );
+			text.alternate = true;
+		}
 
-	if ( exists( "jecatext.txt" ) )
-		mainText.text.setText( cast(string)std.file.read( "jecatext.txt" ) );
-
-	scope( exit )
 		if ( exists( "jecatext.txt" ) )
-			std.file.write( "jecatext.txt", mainText.letterManager.getText() );
-	
-	Bmp stamp = new Bmp( DISPLAY_W, DISPLAY_H );
-	scope( exit )
-		clear( stamp );
+			mainText.text.setText( cast(string)std.file.read( "jecatext.txt" ) );
 
-	while( ! exitHandler.doKeysAndCloseHandling ) {
-		//#ALLEGRO_PIXEL_FORMAT_ANY undefined
-		al_lock_bitmap( stamp.bitmap,
-			al_get_bitmap_format( stamp.bitmap ),
-			ALLEGRO_LOCK_WRITEONLY );
-		al_set_target_bitmap( stamp.bitmap );
-		al_clear_to_color( Colour.red );
-
-		version( NotePad ) {
-			with( mainText )
-				text.draw(),
-				input.draw();
-		} else {
-			with( mainText )
-				text.draw();
-			with( letterBase )
-				input.draw();
-		}
+		scope( exit )
+			if ( exists( "jecatext.txt" ) )
+				std.file.write( "jecatext.txt", mainText.letterManager.getText() );
 		
-		with( letterBase )
-			text.draw();
-		
-		al_set_target_backbuffer( DISPLAY );
-		al_draw_bitmap( stamp.bitmap, 0, 0, 0 );
-		al_unlock_bitmap( stamp.bitmap );
+		Bmp stamp = new Bmp( DISPLAY_W, DISPLAY_H );
+		scope( exit )
+			clear( stamp );
 
-		al_flip_display();
-		
-		with( mainText )
-			text.update();
+		while( ! exitHandler.doKeysAndCloseHandling ) {
+			//#ALLEGRO_PIXEL_FORMAT_ANY undefined
+			al_lock_bitmap( stamp.bitmap,
+				al_get_bitmap_format( stamp.bitmap ),
+				ALLEGRO_LOCK_WRITEONLY );
+			al_set_target_bitmap( stamp.bitmap );
+			al_clear_to_color( Colour.red );
 
-		version( NotePad ) {
-			with( letterBase )
-				text.update();
-			with( mainText )
-				input.doInput();
-		} else {
-			with( letterBase )
-				input.doInput(),
-				text.update();
-		}
-		
-		version( NotePad ) {
-		} else {
-			with( letterBase ) {
-				if ( text.getText() == "Timothy" || 
-					text.getText() == "Alan" || 
-					text.getText() == "Hamish" ) {
-					text.setText(
-						"Oh, hello " ~ text.getText() ~ ", how are you?" );
-				}
-				//#exit
-				if ( text.getText() == "exit" )
-					break;
-
-				if ( text.letters.length > 0 && text[ text.count - 1 ].letter == g_lf ) {
-					mainText.text.setText(
-						mainText.text.getText() ~ text.getText() );
-					text.setText( "" );
-				}
+			version( NotePad ) {
+				with( mainText )
+					text.draw(),
+					input.draw();
+			} else {
+				with( mainText )
+					text.draw();
+				with( letterBase )
+					input.draw();
 			}
-		} // not notepad
-	}
+			
+			with( letterBase )
+				text.draw();
+			
+			al_set_target_backbuffer( DISPLAY );
+			al_draw_bitmap( stamp.bitmap, 0, 0, 0 );
+			al_unlock_bitmap( stamp.bitmap );
+
+			al_flip_display();
+			
+			with( mainText )
+				text.update();
+
+			version( NotePad ) {
+				with( letterBase )
+					text.update();
+				with( mainText )
+					input.doInput();
+			} else {
+				with( letterBase )
+					input.doInput(),
+					text.update();
+			}
+			
+			version( NotePad ) {
+			} else {
+				with( letterBase ) {
+					if ( text.getText() == "Timothy" || 
+						text.getText() == "Alan" || 
+						text.getText() == "Hamish" ) {
+						text.setText(
+							"Oh, hello " ~ text.getText() ~ ", how are you?" );
+					}
+					//#exit
+					if ( text.getText() == "exit" )
+						break;
+
+					if ( text.letters.length > 0 && text[ text.count - 1 ].letter == g_lf ) {
+						mainText.text.setText(
+							mainText.text.getText() ~ text.getText() );
+						text.setText( "" );
+					}
+				}
+			} // not notepad
+		}
+	} // math else
 }
 
 //#what's this step thing (wrong sizes)
@@ -261,7 +265,7 @@ version( Maths ) {
 				}
 				with( letterBase )
 					if ( problem.length < text.count() )
-						user = text.getText()[ problem.length .. $ - 1 ];
+						user = text.getText()[ problem.length .. $ - 1 ]; //#maybe $ - 2, or stripRight
 
 				if (user!="" && user[0]=='q')
 					goto quit;
@@ -281,12 +285,10 @@ version( Maths ) {
 				}
 			} while (guess!=answer);
 		} //for
-	quit:
+	quit: //#what's this! - the goto has got to go!
 		with( letterBase ) {
-			string last;
-			if ( text.count > 0 )
-				last = text.getText()[ 0 .. text.count ] ~ newline; //#not great
-			text.setText( last ~ "Ok then, see you later, do call again! :-)" );
+			text.addText( "Ok then, see you later, do call again! :-)" );
+			text.setLockAll( true );
 		}
 		while( refresh() == true ) { }
 	}

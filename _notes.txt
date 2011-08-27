@@ -1,2 +1,14 @@
-Bitmap font(s) from:
-http://www.zone38.net/font/bmpfont.html
+A JEC (Joel Ezra Christensen) producion
+PPP, Poorly Programmed Production.
+
+Using:
+
+Jeca library - mine
+allegro-5.0.3-monolith-md.dll
+libgcc_s_dw2-1.dll
+libstdc++-6.dll
+
+The D Programming langage: www.digitalmars.com
+Allegro 5.0: http://alleg.sourceforge.net
+DAllegro5: https://github.com/SiegeLord/DAllegro5
+Bitmap font(s) from: http://www.zone38.net/font/bmpfont.html

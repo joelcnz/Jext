@@ -1,5 +1,7 @@
+/// Input Manager
 module jext.inputmanager;
 
+//#unused
 //#unused
 //#unused
 //#character adder
@@ -7,18 +9,25 @@ import std.c.stdio;
 
 import jext.all;
 
+
+/**
+ * Handles key presses, and navigating(sp) the text
+ */
 class InputManager {
 public:
+	/// ctor with a LetterManager object
 	this( LetterManager letterManager ) {
 		this.letterManager = letterManager;
 
 		pos = letterManager.letters.length - 1;
 	}
 	
+	/// Set the common base of LetterMan and this class
 	void setLetterBase( LetterBase letterBase ) {
 		this.letterBase = letterBase;
 	}
 	
+	/// Main function for recieving key presses
 	dchar doInput() {
 		int c = 0;
 		c = readkey();
@@ -232,6 +241,7 @@ public:
 		return chr( c ); //#unused
 	}
 	
+	/// Draw cursor
 	void draw() {
 		double xpos;
 		double ypos;
@@ -252,9 +262,9 @@ public:
 			al_map_rgba( 0, 0, 255, 128 ) );
 	}
 	
-	@property ref auto letterBase() { return m_letterBase; }
-	@property ref auto letterManager() { return m_letterManager; }
-	@property ref auto pos() { return m_pos; }
+	@property ref auto letterBase() { return m_letterBase; } /// access Letter Base object
+	@property ref auto letterManager() { return m_letterManager; } /// access Letter Manager object
+	@property ref auto pos() { return m_pos; } /// access cursor position
 private:
 	int m_pos;
 	LetterBase m_letterBase;
