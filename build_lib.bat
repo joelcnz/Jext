@@ -1,1 +1,1 @@
-dmd -lib -oflibjext all base letterbase lettermanager inputmanager letter
+dmd -lib -oflibjext all base lettermanager letter

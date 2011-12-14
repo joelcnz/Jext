@@ -1,3 +1,5 @@
+//#not work
+//#maths
 //#what's this! - the goto has got to go!
 //#that is set lock all to true or false
 //#what's this step thing (wrong sizes)
@@ -14,9 +16,13 @@
  * 
  * JECA: (thin DAllegro wrapper -  https://github.com/joelcnz/Jeca
  */
+module jtexttest;
 
-version = Maths;
-//version = NotePad;
+//version = Maths;
+version = NotePad;
+//version = NotePad2;
+
+//version = FrameCounter;
 
 version( Windows ) {
 	pragma( lib, "liballegro5" );
@@ -24,8 +30,18 @@ version( Windows ) {
 	pragma( lib, "libjeca" );
 }
 
+import std.stdio;
+import std.string;
+import std.file;
+import std.conv;
+import std.datetime;
+import std.algorithm: reduce, map;
+import std.range: array;
+
 import jeca.all;
 import jext.all;
+
+string fileName = "jecatext.txt";
 
 /**
  * Program entry point
@@ -39,7 +55,47 @@ void main( string[] args ) {
 	}
 
 	Init( "-wxh 640 480".split() ~ args );
-	scope( exit ) Deinit();
+	scope( exit ) Deinit( "Hey! I was writing a book!" );
+	
+	FONT = al_load_ttf_font( toStringz( "DejaVuSans.ttf" ), 36, 0 );
+
+	assert( FONT );
+
+/+
+	class FontSelect {
+		enum {first, second, third, fourth, fifth};
+		string[] fonts;
+		int fontIndex;
+		Bmp lettersSource;
+		this( int fontIndex ) {
+			fonts = "ddrolive ddrocr lemgreen epicpinjec jaltext".split;
+			if ( fontIndex < 0 || fontIndex >= fonts.length ) {
+				writeln( "Font defaulting" );
+				fontIndex = first;
+			}
+		}
+
+		void loadBitmap() {
+			lettersSource = Bmp.loadBitmap( `fonts\` ~ fonts[ fontIndex ] ~ `.bmp` );
+		}
+
+		void setUp() {
+			
+		}
+	}
+
+	struct Font {
+		string name;
+		int width, height;
+		struct Alpha {
+			bool convertToAlpha;
+			int offx, offy;
+			Bmp[] bmpLetters;
+		}
+		Alpha alpha;
+	}
+	auto fonts = [Font("ddrolive", 16, 16, Alpha() ), ];
++/
 
 /+
 file 'ddrolive.txt' as follows:
@@ -48,118 +104,177 @@ ddrocr.bmp
 17 # loading step size
  !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~⌂
 +/
-	auto fonts = "ddrolive.bmp ddrocr.bmp".split;
-	enum first = 0, second = 1;
+	int width, height;
+	auto fonts = "ddrolive.bmp ddrocr.bmp jaltext.bmp".split;
+	enum first = 0, second = 1, third = 2;
+	//int fontIndex = first;
 	int fontIndex = second;
-	auto lettersSource = Bmp.loadBitmap( fonts[ fontIndex ] );
-	al_convert_mask_to_alpha( lettersSource, al_get_pixel( lettersSource, 1, 0 ) );
-	if ( fontIndex == 1 )
-		al_convert_mask_to_alpha( lettersSource, al_get_pixel( lettersSource, g_width + 1, 0 ) );
-	g_bmpLetters = getLetters(
-		lettersSource, null, g_width + 1);
+	//int fontIndex = third;
+	switch(fontIndex) {
+		default:
+		break;
+		case third:
+			width = 16;
+			height = 16;
+		break;
+		case second:
+			width = 16;
+			height = 25;
+		break;
+	}
+	
+	auto lettersSource2 = Bmp.loadBitmap(fonts[second]);
+	//al_convert_mask_to_alpha( lettersSource, al_get_pixel( lettersSource, 1, 0 ) );
+	//if ( fontIndex == second )
+	//	al_convert_mask_to_alpha( lettersSource, al_get_pixel( lettersSource, width + 1, 0 ) );
 	
 	//Do the maths version
 	version( Maths ) {
-		auto letterBaseMaths = new LetterBase(
-			new LetterManager( Square( 0, 0, DISPLAY_W, DISPLAY_H ) ) );
-		letterBaseMaths.text.setLetterBase( letterBaseMaths );
-		letterBaseMaths.input.setLetterBase( letterBaseMaths );
+		auto letterBaseMaths = new LetterManager(lettersSource, Square( 0, 0, DISPLAY_W, DISPLAY_H ),
+			width, height);
+		writeln("Made it this far!");
 		maths( letterBaseMaths );
 		return;
 	} else { // do the note pad version
-		auto letterBase = new LetterBase(
-			new LetterManager( Square( 0, DISPLAY_H - g_height * 3, DISPLAY_W, DISPLAY_H ) ) );
-
-		letterBase.text.setLetterBase( letterBase );
-		letterBase.input.setLetterBase( letterBase );
-		
-		auto mainText = new LetterBase(
-				new LetterManager( Square( 0, 0, DISPLAY_W, DISPLAY_H - g_height * 3 ) )
-		);
+		width = 16;
+		height = 25;
+		auto mainText = new LetterManager(Bmp.loadBitmap(fonts[third]),
+											Square(0, 0, DISPLAY_W,
+											DISPLAY_H - 25 * 3),
+											16, 16);
+		width = 16;
+		height = 16;
+		auto letterBase = new LetterManager(Bmp.loadBitmap(fonts[second]),
+											Square(0, DISPLAY_H - height * 3, DISPLAY_W, height * 3),
+											16, 25);
 
 		with( mainText ) {
-			text.setLetterBase( mainText ),
-			input.setLetterBase( mainText );
-			text.alternate = true;
+			//alternate = true;
 		}
 
-		if ( exists( "jecatext.txt" ) )
-			mainText.text.setText( cast(string)std.file.read( "jecatext.txt" ) );
+		
+		if ( args.length > 1 && exists( args[ 1 ] ) )
+			mainText.setText( cast(string)std.file.read( fileName = args[ 1 ] ) );
+
+		if ( mainText.getText().length ==0 && exists( fileName ) )
+			mainText.setText( readText( fileName ) );
+			//mainText.setText( cast(string)std.file.read( "jecatext.txt" ) );
 
 		scope( exit )
-			if ( exists( "jecatext.txt" ) )
-				std.file.write( "jecatext.txt", mainText.letterManager.getText() );
+			std.file.write( fileName, mainText.getText() );
 		
 		Bmp stamp = new Bmp( DISPLAY_W, DISPLAY_H );
 		scope( exit )
 			clear( stamp );
+			
+		StopWatch sw;
+		sw.start;
+		uint frameCounter = 0, fps = uint.max;
 
 		while( ! exitHandler.doKeysAndCloseHandling ) {
 			//#ALLEGRO_PIXEL_FORMAT_ANY undefined
-			al_lock_bitmap( stamp.bitmap,
-				al_get_bitmap_format( stamp.bitmap ),
-				ALLEGRO_LOCK_WRITEONLY );
-			al_set_target_bitmap( stamp.bitmap );
-			al_clear_to_color( Colour.red );
+//			al_lock_bitmap( stamp.bitmap,
+//				al_get_bitmap_format( stamp.bitmap ),
+//				ALLEGRO_LOCK_WRITEONLY );
+			//al_set_target_bitmap( stamp.bitmap );
+			al_clear_to_color( makecol( 0, 0, 64 ) );
 
+			/+
 			version( NotePad ) {
 				with( mainText )
-					text.draw(),
-					input.draw();
-			} else {
+					draw( g_Draw.text );//,
+					//draw( g_Draw.input );
+			}
+			+/
+			version( NotePad2 ) {
 				with( mainText )
-					text.draw();
+					draw( g_Draw.text ),
+					draw( g_Draw.input );
 				with( letterBase )
-					input.draw();
+					draw( g_Draw.text ); //,
+					//draw( g_Draw.input );
+			} else { //NotePad 1
+				with( mainText )
+					draw( g_Draw.text );
+				with( letterBase )
+					draw( g_Draw.text ),
+					draw( g_Draw.input );
 			}
 			
-			with( letterBase )
-				text.draw();
+//			with( letterBase )
+//				draw( g_Draw.text );
+
+			version( FrameCounter ) {
+				++frameCounter;
+				if ( sw.peek.msecs > 1_000 ) {
+					fps = frameCounter;
+					frameCounter = 0;
+					sw.start;
+				}
+				al_draw_text(
+					FONT,
+					Colour.amber,
+					0, DISPLAY_H / 2,
+					/* flags: */ ALLEGRO_ALIGN_LEFT,
+					toStringz( text( "FPS: ", fps, " frames: ", frameCounter, " hnsecs: ", sw.peek.hnsecs ) )
+				);
+			}
 			
 			al_set_target_backbuffer( DISPLAY );
-			al_draw_bitmap( stamp.bitmap, 0, 0, 0 );
-			al_unlock_bitmap( stamp.bitmap );
+			//al_draw_bitmap( stamp.bitmap, 0, 0, 0 );
+//			al_unlock_bitmap( stamp.bitmap );
 
 			al_flip_display();
 			
+			if ( mainText.wait == true )
+				poll_input_wait;
+
 			with( mainText )
-				text.update();
+				update();
 
 			version( NotePad ) {
-				with( letterBase )
-					text.update();
 				with( mainText )
-					input.doInput();
-			} else {
+					update();
 				with( letterBase )
-					input.doInput(),
-					text.update();
+					doInput();
+			} 
+			version( NotePad2 ) {
+				/+
+				with( letterBase )
+					doInput(),
+					update();
+				+/
+				with( mainText )
+					doInput(),
+					update();
+				if ( letterBase.wait == true )
+					poll_input_wait;
 			}
 			
-			version( NotePad ) {
-			} else {
+			version( NotePad2 ) {
 				with( letterBase ) {
-					if ( text.getText() == "Timothy" || 
-						text.getText() == "Alan" || 
-						text.getText() == "Hamish" ) {
-						text.setText(
-							"Oh, hello " ~ text.getText() ~ ", how are you?" );
+					if ( getText() == "Timothy" || 
+						getText() == "Alan" || 
+						getText() == "Hamish" ) {
+						setText(
+							"Oh, hello " ~ getText() ~ ", how are you?" );
 					}
 					//#exit
-					if ( text.getText() == "exit" )
+					if ( getText() == "exit" )
 						break;
 
-					if ( text.letters.length > 0 && text[ text.count - 1 ].letter == g_lf ) {
-						mainText.text.setText(
-							mainText.text.getText() ~ text.getText() );
-						text.setText( "" );
+					if ( letters.length > 0 && letters[ count - 1 ].letter == g_lf ) {
+						mainText.setText(
+							mainText.getText() ~ getText() );
+						setText( "" );
 					}
 				}
-			} // not notepad
+			} // notepad2
 		}
 	} // math else
 }
 
+/+
 //#what's this step thing (wrong sizes)
 Bmp[256] getLetters( ALLEGRO_BITMAP* bmp, in string order, int step ) {
 	Bmp[256] letters;
@@ -172,18 +287,14 @@ Bmp[256] getLetters( ALLEGRO_BITMAP* bmp, in string order, int step ) {
 				0, 0,
 				0
 			);
-
-			al_set_target_backbuffer( DISPLAY );
-			al_draw_bitmap( bmp, 0, 0, 0 );
-			al_draw_bitmap( letters[ i ].bitmap, (i - 33) * step, 32, 0 );
 		} else {
 			letters[ i ] = new Bmp( g_width, g_height );
 		}
 	}
-	al_flip_display();
 	
 	return letters;
 }
++/
 
 //version = SomeKindOfWrap;
 version( SomeKindOfWrap ) {
@@ -199,97 +310,108 @@ version( SomeKindOfWrap ) {
 +/
 }
 
+//#maths
 version( Maths ) {
 	import std.random;
 
-	void maths( LetterBase letterBase ) {
+	void maths( LetterManager jext ) {
 		Bmp stamp = new Bmp( DISPLAY_W, DISPLAY_H );
 
 		bool refresh() {
-			al_lock_bitmap( stamp.bitmap,
-				al_get_bitmap_format( stamp.bitmap ),
-				ALLEGRO_LOCK_WRITEONLY );
-			al_set_target_bitmap( stamp.bitmap );
-			
-			with( letterBase )
-				text.draw(),
-				input.draw();
-			
-			al_set_target_backbuffer( DISPLAY );
-			al_draw_bitmap( stamp.bitmap, 0, 0, 0 );
-			al_unlock_bitmap( stamp.bitmap );
+			al_clear_to_color( makecol( 0, 0, 64 ) );
+			with( jext ) {
+				al_lock_bitmap( stamp.bitmap,
+					al_get_bitmap_format( stamp.bitmap ),
+					ALLEGRO_LOCK_WRITEONLY );
+				al_set_target_bitmap( stamp.bitmap );
+				
+				with( g_Draw )
+					draw(text), //#access violation
+					draw(input);
+				
+				al_set_target_backbuffer( DISPLAY );
+				al_draw_bitmap( stamp.bitmap, 0, 0, 0 );
+				al_unlock_bitmap( stamp.bitmap );
 
-			al_flip_display();
-			
-			with( letterBase ) {
-				if ( text.count != 0
-					&& text.letters[ $ - 1 ].lock == false
-					&& text.letters[ $ - 1 ].letter == g_lf ) {
+				al_flip_display();
+				
+				if ( wait == true )
+					poll_input_wait;
+
+				
+				if ( count != 0
+					&& letters[$-1].lock == false
+					&& letters[$-1].letter == g_lf ) {
 					return false;
 				}
-				input.doInput();
-				text.update();
-			}
+
+				doInput();
+				update();
+			} // with jext
 			
 			return true;
 		}
 
 		int[2] variables;
 		string user;
-		with( letterBase )
-			text.addTextln( "Enter 'quit' to exit" );
+		with( jext )
+			addTextln( "Enter 'quit' to exit" );
+		writeln("Hey, I haven't been here for a while!");
 		
 		int rand() { return uniform(0, 100); }
 		for (;;) {
+			//alias map!(rand) doRand;
+			//variables=map!"a = rand"(array(variables)); //#not work
 			foreach (ref v; variables)
 				v=rand;
 			int answer, guess;
-			answer=variables[0]+variables[1];
+			answer=reduce!"a+b"(variables); //variables[0]+variables[1];
 			string problem;
 			do {
-				with( letterBase ) {
-					text.setLockAll( false ); //#that is set lock all to true or false
-					problem = text.getText() ~
+				with( jext ) {
+					setLockAll( false ); //#that is set lock all to true or false
+					problem = getText() ~
 						to!string( variables[0] ) ~ "+" ~ to!string( variables[1] )
 						~ "=";
-					
+					writeln('"', problem, '"');
 					//problem = "";
 					
-					text.setText( problem );
-					text.setLockAll( true );
+					jext.setText( problem );
+					jext.setLockAll( true );
 				}
 
 				while( refresh() == true ) {
-					if ( exitHandler.doKeysAndCloseHandling )
+					if ( exitHandler.doKeysAndCloseHandling ) {
+						jext.addText( newline );
 						goto quit;
+					}
 				}
-				with( letterBase )
-					if ( problem.length < text.count() )
-						user = text.getText()[ problem.length .. $ - 1 ]; //#maybe $ - 2, or stripRight
+				with( jext )
+					if ( problem.length < count() )
+						user = getText()[ problem.length .. $ ].stripRight; //#maybe $ - 2, or stripRight
 
 				if (user!="" && user[0]=='q')
 					goto quit;
 				if (isAValidNumber(user)==false) {
-					with( letterBase )
-						text.addTextln( "That wont do." );
+					with( jext )
+						addTextln( "That wont do." );
 					continue;
 				}
 				guess=parse!int(user); // User input
 				if (guess==answer) {
-					with( letterBase )
-						text.addTextln( "Good" );
+					with( jext )
+						addTextln( "Good" );
 				}
 				else {
-					with( letterBase )
-						text.addTextln( (guess > answer ? "Less than" : "Greater than" ) );
+					with( jext )
+						addTextln( (guess > answer ? "Less than" : "Greater than" ) );
 				}
 			} while (guess!=answer);
 		} //for
 	quit: //#what's this! - the goto has got to go!
-		with( letterBase ) {
-			text.addText( "Ok then, see you later, do call again! :-)" );
-			text.setLockAll( true );
-		}
+		with( jext )
+			addText( "Ok then, see you later, do call again! :-)" ),
+			setLockAll( true );
 		while( refresh() == true ) { }
 	}
 
